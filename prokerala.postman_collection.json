@@ -1,0 +1,632 @@
+{
+	"info": {
+		"_postman_id": "b4dc5ef5-fc8a-4ad3-b967-6117733c8451",
+		"name": "prokerala",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "40741642",
+		"_collection_link": "https://prokerala-devs.postman.co/workspace/ce6b719d-b4e4-4b10-86fd-295b79f730b1/collection/40741642-b4dc5ef5-fc8a-4ad3-b967-6117733c8451?action=share&source=collection_link&creator=40741642"
+	},
+	"item": [
+		{
+			"name": "Get Kundli",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"pm.sendRequest({\r",
+							"    url: 'https://api.prokerala.com/token',\r",
+							"    method: 'POST',\r",
+							"    header: {\r",
+							"        'Content-Type': 'application/json',\r",
+							"    },\r",
+							"    body: {\r",
+							"        mode: 'raw',\r",
+							"        raw: JSON.stringify({\r",
+							"            client_id: 'f32d1875-16d7-4471-935c-1a02a2ba24fb',\r",
+							"            client_secret: 'pX9j2phhSpgBoGwrr23ltiLpWX35GsWSD6XEmOBH',\r",
+							"            grant_type: 'client_credentials'\r",
+							"        })\r",
+							"    }\r",
+							"}, function (err, res) {\r",
+							"    if (err) {\r",
+							"        console.log('Failed to retrieve token:', err);\r",
+							"    } else {\r",
+							"        let token = res.json().access_token;\r",
+							"        if(token) {\r",
+							"            pm.environment.set('token', token);\r",
+							"            console.log('Token successfully retrieved and stored:', token);\r",
+							"            pm.request.headers.add({\r",
+							"                key: \"Authorization\",\r",
+							"                value: `Bearer ${token}`\r",
+							"            });\r",
+							"        } else {\r",
+							"            console.error('Token missing in Response', res.json());\r",
+							"        }\r",
+							"    }\r",
+							"});\r",
+							"\r",
+							"// Get Latitude and Longitude from the current CSV row\r",
+							"let latitude = pm.iterationData.get(\"Latitude\");\r",
+							"let longitude = pm.iterationData.get(\"Longitude\");\r",
+							"\r",
+							"if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {\r",
+							"    pm.environment.set(\"preRequestError\", \"Invalid or missing Latitude/Longitude in CSV.\");\r",
+							"    throw new Error(\"Latitude or Longitude is invalid.\");\r",
+							"}\r",
+							"\r",
+							"// Combine them into a single 'Coordinates' value\r",
+							"let coordinates = `${latitude},${longitude}`;\r",
+							"pm.variables.set(\"coordinates\", coordinates);\r",
+							"\r",
+							"// Get DateTime directly from the CSV file\r",
+							"let datetime = pm.iterationData.get(\"Date of Birth & Time (YYYY-MM-DD HH:MM:00)\");\r",
+							"\r",
+							"// Validate DateTime\r",
+							"if(!datetime) {\r",
+							"    pm.environment.set(\"preRequestError\", \"Missing or invalid Datetime in CSV.\");\r",
+							"    throw new Error(\"DateTime is missing in the CSV file.\");\r",
+							"}\r",
+							"\r",
+							"// Set the variables for the request\r",
+							"pm.variables.set(\"dateTime\", datetime);\r",
+							"\r",
+							"// Log for debugging (optional)\r",
+							"console.log(\"Coordinates:\", coordinates);\r",
+							"console.log(\"DateTime:\", datetime);\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"// Parse the response body as JSON\r",
+							"let response = pm.response.json();\r",
+							"\r",
+							"// Validate 'nakshatra_details'\r",
+							"pm.test(\"'nakshatra_details' is present\", function () {\r",
+							"    pm.expect(response.data).to.have.property(\"nakshatra_details\");\r",
+							"});\r",
+							"\r",
+							"// Validate 'mangal_dosha'\r",
+							"pm.test(\"'mangal_dosha' is present\", function () {\r",
+							"    pm.expect(response.data).to.have.property(\"mangal_dosha\");\r",
+							"});\r",
+							"\r",
+							"// Validate 'yoga_details'\r",
+							"pm.test(\"'yoga_details' is present\", function () {\r",
+							"    pm.expect(response.data).to.have.property(\"yoga_details\");\r",
+							"    pm.expect(response.data.yoga_details).to.be.an(\"array\"); // Ensure it's an array\r",
+							"});\r",
+							"\r",
+							"// Log for debugging (optional)\r",
+							"// console.log(\"Nakshatra Details:\", response.data.nakshatra_details);\r",
+							"// console.log(\"Mangal Dosha:\", response.data.mangal_dosha);\r",
+							"// console.log(\"Yoga Details:\", response.data.yoga_details);\r",
+							"\r",
+							"// Extract Nakshatra and its Lord\r",
+							"let nakshatra = response.data.nakshatra_details.nakshatra.name || \"N/A\";\r",
+							"let nakshatraLord = response.data.nakshatra_details.nakshatra.lord.name || \"N/A\";\r",
+							"\r",
+							"// Extract Yogas as a comma-separated string\r",
+							"let yogas = response.data.yoga_details.map(yoga => yoga.name).join(\", \") || \"N/A\";\r",
+							"\r",
+							"// Set the variables for use in the CSV file\r",
+							"pm.variables.set(\"Nakshatra\", nakshatra);\r",
+							"pm.variables.set(\"Nakshatra Lord\", nakshatraLord);\r",
+							"pm.variables.set(\"Yogas\", yogas);\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "",
+						"value": "",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/astrology/kundli?ayanamsa={{Ayanamasa}}&coordinates={{coordinates}}&datetime={{dateTime}}&la={{Language}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"astrology",
+						"kundli"
+					],
+					"query": [
+						{
+							"key": "ayanamsa",
+							"value": "{{Ayanamasa}}"
+						},
+						{
+							"key": "coordinates",
+							"value": "{{coordinates}}"
+						},
+						{
+							"key": "datetime",
+							"value": "{{dateTime}}"
+						},
+						{
+							"key": "la",
+							"value": "{{Language}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Kaal Sarp Dosha",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"pm.sendRequest({\r",
+							"    url: 'https://api.prokerala.com/token',\r",
+							"    method: 'POST',\r",
+							"    header: {\r",
+							"        'Content-Type': 'application/json',\r",
+							"    },\r",
+							"    body: {\r",
+							"        mode: 'raw',\r",
+							"        raw: JSON.stringify({\r",
+							"            client_id: 'f32d1875-16d7-4471-935c-1a02a2ba24fb',\r",
+							"            client_secret: 'pX9j2phhSpgBoGwrr23ltiLpWX35GsWSD6XEmOBH',\r",
+							"            grant_type: 'client_credentials'\r",
+							"        })\r",
+							"    }\r",
+							"}, function (err, res) {\r",
+							"    if (err) {\r",
+							"        console.log('Failed to retrieve token:', err);\r",
+							"    } else {\r",
+							"        let token = res.json().access_token;\r",
+							"        if(token) {\r",
+							"            pm.environment.set('token', token);\r",
+							"            console.log('Token successfully retrieved and stored:', token);\r",
+							"            pm.request.headers.add({\r",
+							"                key: \"Authorization\",\r",
+							"                value: `Bearer ${token}`\r",
+							"            });\r",
+							"        } else {\r",
+							"            console.error('Token missing in Response', res.json());\r",
+							"        }\r",
+							"    }\r",
+							"});\r",
+							"\r",
+							"// Get Latitude and Longitude from the current CSV row\r",
+							"let latitude = pm.iterationData.get(\"Latitude\");\r",
+							"let longitude = pm.iterationData.get(\"Longitude\");\r",
+							"\r",
+							"// // Validate Latitude and Longitude\r",
+							"// if (!latitude || !longitude) {\r",
+							"//     pm.environment.set(\"preRequestError\", \"Missing or invalid Latitude/Longitude in CSV.\");\r",
+							"//     throw new Error(\"Latitude or Longitude is missing in the CSV file.\");\r",
+							"// }\r",
+							"\r",
+							"// Combine them into a single 'Coordinates' value\r",
+							"let coordinates = `${latitude},${longitude}`;\r",
+							"pm.variables.set(\"coordinates\", coordinates);\r",
+							"\r",
+							"// Get DateTime directly from the CSV file\r",
+							"let datetime = pm.iterationData.get(\"Date of Birth & Time (YYYY-MM-DD HH:MM:00)\");\r",
+							"\r",
+							"// Validate DateTime\r",
+							"if(!datetime) {\r",
+							"    pm.environment.set(\"preRequestError\", \"Missing or invalid Datetime in CSV.\");\r",
+							"    throw new Error(\"DateTime is missing in the CSV file.\");\r",
+							"}\r",
+							"\r",
+							"// Set the variables for the request\r",
+							"pm.variables.set(\"dateTime\", datetime);\r",
+							"\r",
+							"// Log for debugging (optional)\r",
+							"console.log(\"Coordinates:\", coordinates);\r",
+							"console.log(\"DateTime:\", datetime);\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "",
+						"value": "",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "https://api.prokerala.com/v2/astrology/kaal-sarp-dosha?ayanamsa={{Ayanamasa}}&coordinates={{coordinates}}&datetime={{dateTime}}",
+					"protocol": "https",
+					"host": [
+						"api",
+						"prokerala",
+						"com"
+					],
+					"path": [
+						"v2",
+						"astrology",
+						"kaal-sarp-dosha"
+					],
+					"query": [
+						{
+							"key": "ayanamsa",
+							"value": "{{Ayanamasa}}"
+						},
+						{
+							"key": "coordinates",
+							"value": "{{coordinates}}"
+						},
+						{
+							"key": "datetime",
+							"value": "{{dateTime}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Sade Sati",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"pm.sendRequest({\r",
+							"    url: 'https://api.prokerala.com/token',\r",
+							"    method: 'POST',\r",
+							"    header: {\r",
+							"        'Content-Type': 'application/json',\r",
+							"    },\r",
+							"    body: {\r",
+							"        mode: 'raw',\r",
+							"        raw: JSON.stringify({\r",
+							"            client_id: 'f32d1875-16d7-4471-935c-1a02a2ba24fb',\r",
+							"            client_secret: 'pX9j2phhSpgBoGwrr23ltiLpWX35GsWSD6XEmOBH',\r",
+							"            grant_type: 'client_credentials'\r",
+							"        })\r",
+							"    }\r",
+							"}, function (err, res) {\r",
+							"    if (err) {\r",
+							"        console.log('Failed to retrieve token:', err);\r",
+							"    } else {\r",
+							"        let token = res.json().access_token;\r",
+							"        if(token) {\r",
+							"            pm.environment.set('token', token);\r",
+							"            console.log('Token successfully retrieved and stored:', token);\r",
+							"            pm.request.headers.add({\r",
+							"                key: \"Authorization\",\r",
+							"                value: `Bearer ${token}`\r",
+							"            });\r",
+							"        } else {\r",
+							"            console.error('Token missing in Response', res.json());\r",
+							"        }\r",
+							"    }\r",
+							"});\r",
+							"\r",
+							"// Get Latitude and Longitude from the current CSV row\r",
+							"let latitude = pm.iterationData.get(\"Latitude\");\r",
+							"let longitude = pm.iterationData.get(\"Longitude\");\r",
+							"\r",
+							"// Combine them into a single 'Coordinates' value\r",
+							"let coordinates = `${latitude},${longitude}`;\r",
+							"pm.variables.set(\"coordinates\", coordinates);\r",
+							"\r",
+							"// Get DateTime directly from the CSV file\r",
+							"let datetime = pm.iterationData.get(\"Date of Birth & Time (YYYY-MM-DD HH:MM:00)\");\r",
+							"\r",
+							"// Validate DateTime\r",
+							"if(!datetime) {\r",
+							"    pm.environment.set(\"preRequestError\", \"Missing or invalid Datetime in CSV.\");\r",
+							"    throw new Error(\"DateTime is missing in the CSV file.\");\r",
+							"}\r",
+							"\r",
+							"// Set the variables for the request\r",
+							"pm.variables.set(\"dateTime\", datetime);\r",
+							"\r",
+							"// Log for debugging (optional)\r",
+							"console.log(\"Coordinates:\", coordinates);\r",
+							"console.log(\"DateTime:\", datetime);\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.prokerala.com/v2/astrology/sade-sati?datetime={{dateTime}}&coordinates={{coordinates}}&ayanamsa={{Ayanamasa}}",
+					"protocol": "https",
+					"host": [
+						"api",
+						"prokerala",
+						"com"
+					],
+					"path": [
+						"v2",
+						"astrology",
+						"sade-sati"
+					],
+					"query": [
+						{
+							"key": "datetime",
+							"value": "{{dateTime}}"
+						},
+						{
+							"key": "coordinates",
+							"value": "{{coordinates}}"
+						},
+						{
+							"key": "ayanamsa",
+							"value": "{{Ayanamasa}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Ascendent",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"pm.sendRequest({\r",
+							"    url: 'https://api.prokerala.com/token',\r",
+							"    method: 'POST',\r",
+							"    header: {\r",
+							"        'Content-Type': 'application/json',\r",
+							"    },\r",
+							"    body: {\r",
+							"        mode: 'raw',\r",
+							"        raw: JSON.stringify({\r",
+							"            client_id: 'f32d1875-16d7-4471-935c-1a02a2ba24fb',\r",
+							"            client_secret: 'pX9j2phhSpgBoGwrr23ltiLpWX35GsWSD6XEmOBH',\r",
+							"            grant_type: 'client_credentials'\r",
+							"        })\r",
+							"    }\r",
+							"}, function (err, res) {\r",
+							"    if (err) {\r",
+							"        console.error('Failed to retrieve token:', err);\r",
+							"    } else {\r",
+							"        let token = res.json().access_token;\r",
+							"        if (token) {\r",
+							"            pm.environment.set('token', token);\r",
+							"            console.log('Token retrieved:', token);\r",
+							"            pm.request.headers.add({\r",
+							"                key: \"Authorization\",\r",
+							"                value: `Bearer ${token}`\r",
+							"            });\r",
+							"        } else {\r",
+							"            console.error('Token missing in response:', res.json());\r",
+							"        }\r",
+							"    }\r",
+							"});\r",
+							"\r",
+							"// Debugging logs for variables\r",
+							"let latitude = pm.iterationData.get(\"Latitude\");\r",
+							"let longitude = pm.iterationData.get(\"Longitude\");\r",
+							"let datetime = pm.iterationData.get(\"Date of Birth & Time (YYYY-MM-DD HH:MM:00)\");\r",
+							"\r",
+							"if (!latitude || !longitude || !datetime) {\r",
+							"    throw new Error(\"Required variables are missing. Check your data file.\");\r",
+							"}\r",
+							"\r",
+							"let coordinates = `${latitude},${longitude}`;\r",
+							"pm.variables.set(\"coordinates\", coordinates);\r",
+							"pm.variables.set(\"dateTime\", datetime);\r",
+							"\r",
+							"console.log(\"Coordinates:\", coordinates);\r",
+							"console.log(\"DateTime:\", datetime);\r",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/astrology/natal-chart?profile[datetime]={{dateTime}}&profile[coordinates]={{coordinates}}&house_system={{houseSystem}}&orb={{orb}}&birth_time_rectification={{birthTimeRectification}}&aspect_filter={{aspectFilter}}&la={{Language}}&ayanamsa={{Ayanamasa}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"astrology",
+						"natal-chart"
+					],
+					"query": [
+						{
+							"key": "profile[datetime]",
+							"value": "{{dateTime}}"
+						},
+						{
+							"key": "profile[coordinates]",
+							"value": "{{coordinates}}"
+						},
+						{
+							"key": "house_system",
+							"value": "{{houseSystem}}"
+						},
+						{
+							"key": "orb",
+							"value": "{{orb}}"
+						},
+						{
+							"key": "birth_time_rectification",
+							"value": "{{birthTimeRectification}}"
+						},
+						{
+							"key": "aspect_filter",
+							"value": "{{aspectFilter}}"
+						},
+						{
+							"key": "la",
+							"value": "{{Language}}"
+						},
+						{
+							"key": "ayanamsa",
+							"value": "{{Ayanamasa}}"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "oauth2",
+		"oauth2": [
+			{
+				"key": "clientSecret",
+				"value": "{{clientSecret}}",
+				"type": "string"
+			},
+			{
+				"key": "clientId",
+				"value": "{{clientId}}",
+				"type": "string"
+			},
+			{
+				"key": "accessTokenUrl",
+				"value": "https://api.prokerala.com/token",
+				"type": "string"
+			},
+			{
+				"key": "grant_type",
+				"value": "client_credentials",
+				"type": "string"
+			},
+			{
+				"key": "addTokenTo",
+				"value": "header",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					"\r",
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://api.prokerala.com/v2",
+			"type": "string"
+		},
+		{
+			"key": "clientId",
+			"value": "f32d1875-16d7-4471-935c-1a02a2ba24fb",
+			"type": "string"
+		},
+		{
+			"key": "clientSecret",
+			"value": "pX9j2phhSpgBoGwrr23ltiLpWX35GsWSD6XEmOBH",
+			"type": "string"
+		},
+		{
+			"key": "Ayanamasa",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "Language",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": ""
+		}
+	]
+}
